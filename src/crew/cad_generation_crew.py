@@ -30,27 +30,17 @@ class CadGenerationCrew:
     8. Validate and export CAD models
     """
     
-    agents_config = 'config/agents.yaml'
-    tasks_config = 'config/tasks.yaml'
+    # Configuration files
+    # For Ollama (local LLM): use '../../config/agents_ollama.yaml'
+    # For OpenAI: use '../../config/agents.yaml'
+    agents_config = '../../config/agents_ollama.yaml'  # Use agents.yaml for OpenAI
+    tasks_config = '../../config/tasks.yaml'
     
     # Initialize tools
     code_interpreter = CodeInterpreterTool()
     
-    def __init__(self):
-        """Initialize the CAD Generation Crew."""
-        super().__init__()
-        self._ensure_output_directories()
-    
-    def _ensure_output_directories(self):
-        """Ensure output directories exist."""
-        output_dirs = [
-            'outputs/generated_code',
-            'outputs/cad_files/step',
-            'outputs/cad_files/stl',
-            'outputs/validation_reports'
-        ]
-        for dir_path in output_dirs:
-            Path(dir_path).mkdir(parents=True, exist_ok=True)
+    # Note: Don't override __init__ when using @CrewBase decorator
+    # The metaclass handles initialization automatically
     
     @before_kickoff
     def prepare_inputs(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
@@ -60,6 +50,9 @@ class CadGenerationCrew:
         :param inputs: Dictionary containing user_input and optional parameters
         :return: Processed inputs
         """
+        # Ensure output directories exist
+        self._ensure_output_directories()
+        
         print("=" * 70)
         print("CAD AGENT - TEXT-TO-CAD GENERATION")
         print("=" * 70)
@@ -73,6 +66,17 @@ class CadGenerationCrew:
             inputs['design_type'] = 'mechanical part'
         
         return inputs
+    
+    def _ensure_output_directories(self):
+        """Ensure output directories exist."""
+        output_dirs = [
+            'outputs/generated_code',
+            'outputs/cad_files/step',
+            'outputs/cad_files/stl',
+            'outputs/validation_reports'
+        ]
+        for dir_path in output_dirs:
+            Path(dir_path).mkdir(parents=True, exist_ok=True)
     
     @after_kickoff
     def finalize_output(self, result: Any) -> Any:

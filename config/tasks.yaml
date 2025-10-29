@@ -28,7 +28,6 @@ extract_design_intent_task:
     - constraints: array of design constraint strings
     - materials: object with material specifications
   agent: design_intent_agent
-  output_json: true
 
 generate_sketch_code_task:
   description: >
@@ -253,5 +252,4 @@ validate_code_and_geometry_task:
     - extract_design_intent_task
     - integrate_code_task
   output_file: outputs/validation_reports/validation_report.json
-  output_json: true
 

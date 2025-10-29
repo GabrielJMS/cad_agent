@@ -24,6 +24,7 @@ langchain-community>=0.0.20
 # LLM providers
 openai>=1.0.0
 anthropic>=0.18.0  # Optional: for Claude support
+litellm>=1.0.0  # Required for Ollama and other LLM integrations
 
 # ============================================================================
 # Vector Database & Embeddings
