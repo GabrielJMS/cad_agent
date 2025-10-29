@@ -1,0 +1,164 @@
+# CAD Agent - Python Requirements
+# Text-to-CAD Agentic Workflow using CrewAI and Build123D
+
+# ============================================================================
+# Core Frameworks
+# ============================================================================
+
+# Multi-agent orchestration
+crewai[tools]>=0.80.0  # Includes CodeInterpreterTool for native code execution
+crewai-tools>=0.2.0    # Additional CrewAI tools
+
+# Parametric CAD generation
+build123d>=0.7.0
+
+# ============================================================================
+# LLM and AI
+# ============================================================================
+
+# LangChain for RAG pipeline
+langchain>=0.1.0
+langchain-openai>=0.0.5
+langchain-community>=0.0.20
+
+# LLM providers
+openai>=1.0.0
+anthropic>=0.18.0  # Optional: for Claude support
+
+# ============================================================================
+# Vector Database & Embeddings
+# ============================================================================
+
+# Vector stores (choose one or both)
+chromadb>=0.4.0
+# faiss-cpu>=1.7.4  # Alternative to ChromaDB
+
+# Embeddings
+sentence-transformers>=2.2.0
+transformers>=4.30.0
+
+# ============================================================================
+# NLP & Text Processing
+# ============================================================================
+
+# Natural language processing
+spacy>=3.7.0
+nltk>=3.8.1
+
+# Text utilities
+python-dotenv>=1.0.0
+tiktoken>=0.5.0  # Token counting for OpenAI
+
+# ============================================================================
+# CAD & Geometry
+# ============================================================================
+
+# OCP (OpenCascade) kernel for Build123D
+cadquery-ocp>=7.7.0
+
+# Numerical computing
+numpy>=1.24.0
+scipy>=1.10.0
+sympy>=1.12  # Symbolic mathematics for parametric calculations
+
+# ============================================================================
+# Database
+# ============================================================================
+
+# ORM and database
+sqlalchemy>=2.0.0
+# Note: sqlite3 is built-in to Python
+
+# ============================================================================
+# Data Validation & Serialization
+# ============================================================================
+
+# Data validation
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# Serialization
+pyyaml>=6.0.0
+python-json-logger>=2.0.0
+
+# ============================================================================
+# Web Framework (Optional - for UI)
+# ============================================================================
+
+# Choose one based on preference
+# gradio>=4.0.0  # Easy ML app interfaces
+# streamlit>=1.28.0  # Alternative to Gradio
+
+# ============================================================================
+# Image Processing (Optional - for future image-to-CAD)
+# ============================================================================
+
+# pillow>=10.0.0
+# opencv-python>=4.8.0
+
+# ============================================================================
+# Testing & Quality
+# ============================================================================
+
+# Testing framework
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-asyncio>=0.21.0
+
+# Code quality
+black>=23.0.0
+mypy>=1.5.0
+ruff>=0.1.0  # Fast Python linter
+pre-commit>=3.3.0
+
+# ============================================================================
+# Utilities
+# ============================================================================
+
+# HTTP requests
+requests>=2.31.0
+httpx>=0.24.0
+
+# Progress bars
+tqdm>=4.66.0
+
+# Logging
+loguru>=0.7.0
+
+# Configuration management
+omegaconf>=2.3.0
+
+# ============================================================================
+# Code Execution & Containers
+# ============================================================================
+
+# Docker SDK for secure code execution (used by CodeInterpreterTool)
+docker>=6.0.0
+
+# ============================================================================
+# Development Tools
+# ============================================================================
+
+# Jupyter for experimentation
+jupyter>=1.0.0
+ipykernel>=6.25.0
+notebook>=7.0.0
+
+# Type stubs
+types-requests>=2.31.0
+types-PyYAML>=6.0.0
+
+# ============================================================================
+# Documentation (Optional)
+# ============================================================================
+
+# sphinx>=7.0.0  # For generating documentation
+# sphinx-rtd-theme>=1.3.0
+
+# ============================================================================
+# Performance & Monitoring (Optional)
+# ============================================================================
+
+# python-multipart>=0.0.6  # For file uploads in web UI
+# psutil>=5.9.0  # System monitoring
+
