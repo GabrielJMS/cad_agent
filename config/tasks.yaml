@@ -1,255 +1,188 @@
-# CAD Agent - Tasks Configuration
-# Following CrewAI best practices: https://docs.crewai.com/quickstart
+# CAD Agent - Tasks Configuration (Delegation-Based Workflow)
+# The Build123D Orchestrator is the main driver that delegates to specialists
 
 extract_design_intent_task:
   description: >
-    Analyze the user input: '{user_input}' and extract complete design requirements.
+    STEP 1: REFORMULATE & ENHANCE THE USER PROMPT
     
-    Extract and structure:
-    1. List of components with their basic geometry (cylinders, boxes, custom shapes)
-    2. All dimensions with units (mm, inches, etc.)
-    3. Features needed (fillets, chamfers, holes, patterns, threads)
-    4. Standard parts required (screws, bearings, gears with designations)
-    5. Materials and finishes if specified
-    6. Design constraints (clearances, alignments, assembly requirements)
-    7. Tolerances if specified
+    Given user input: '{user_input}'
     
-    Identify standard parts by their proper designations (e.g., "M8 socket head cap screw"
-    should be identified as "ISO 4762 M8"). Make reasonable engineering assumptions for
-    missing information and note any ambiguities that need clarification.
+    Your job is to transform this (potentially vague) input into a detailed technical specification.
     
-    Output a structured JSON specification that follows the design_spec_schema.
+    PROCESS:
+    1. **Analyze the prompt**: Identify what's clear vs. what's missing
+    2. **Ask clarifying questions** (if user interaction available) OR make intelligent assumptions
+    3. **Reformulate the requirements** in precise engineering terms
+    4. **Extract design intent**: What is the real goal? (e.g., "lightweight" → thin walls, weight target)
+    5. **Identify standard parts**: Map informal names to standards (e.g., "bolt" → ISO 4762 M6x20)
+    6. **Specify missing details** using engineering best practices
+    
+    EXTRACT & STRUCTURE:
+    - Component list: geometry type (cylinder, box, custom profile), dimensions with units
+    - Features: fillets (specify radius), chamfers, holes (diameter, depth, pattern), threads (designation)
+    - Standard parts: proper designations (ISO/DIN/ANSI numbers, sizes, grades)
+    - Materials: specific grades (e.g., "steel" → "AISI 304 stainless steel")
+    - Tolerances: general or specific (e.g., "tight fit" → H7/g6)
+    - Constraints: clearances (specify mm), alignments, assembly order, orientation
+    - Design intent: weight target, strength requirements, manufacturing method, cost constraints
+    
+    MAKE INTELLIGENT ASSUMPTIONS:
+    - If "small bracket" → assume 50-100mm range, 3-5mm wall thickness
+    - If "bolt holes" → assume standard clearance (M6 → 6.6mm hole)
+    - If "rounded edges" → assume 2-3mm fillet radius
+    - If "mounting plate" → assume flat surface, standard hole pattern
+    
+    ALWAYS NOTE:
+    - What assumptions you made and why
+    - What information would improve the design (for user to provide)
+    - Alternative interpretations if prompt is ambiguous
+    
+    Output a rich, detailed specification ready for CAD generation.
   expected_output: >
-    A complete JSON specification containing:
+    A comprehensive structured specification containing:
+    - original_prompt: string (as entered by user)
+    - reformulated_requirements: string (clear, enhanced version)
+    - design_intent: object (primary goals, constraints, priorities)
+    - assumptions_made: array of strings (what you assumed and why)
     - design_name: string
-    - description: string
-    - components: array of component objects with dimensions and features
-    - standard_parts: array of standard part requirements
-    - constraints: array of design constraint strings
-    - materials: object with material specifications
+    - description: string (detailed technical description)
+    - components: array of component objects with:
+        * name, geometry_type, dimensions (with units), features, material
+    - standard_parts: array with proper designations and specifications
+    - constraints: array of design constraints with specifics
+    - materials: object with specific grades and properties
+    - tolerances: object with tolerance specifications
+    - manufacturing_notes: array of relevant manufacturing considerations
+    - clarifications_needed: array of questions (if critical info missing)
   agent: design_intent_agent
 
-generate_sketch_code_task:
+orchestrate_cad_generation_task:
   description: >
-    Based on the design specification from the previous task, generate Build123D
-    Python code for all required 2D sketches and profiles.
+    You are the Lead CAD Programmer coordinating the entire Build123D code generation.
+    You have the strongest knowledge of Build123D and access to the full codebase.
     
-    For each component that needs a sketch:
-    1. Use proper BuildSketch context
-    2. Create appropriate 2D primitives (Circle, Rectangle, Polygon, etc.)
-    3. Apply constraints where needed
-    4. Add construction geometry if required
-    5. Use Mode.SUBTRACT for holes and cutouts
-    6. Include clear comments explaining each sketch
+    YOUR WORKFLOW:
     
-    IMPORTANT: After writing the code, EXECUTE IT to verify it works correctly.
-    If there are errors, query the Build123D documentation, fix the code, and retry.
+    1. ANALYZE the design specification from the previous task
     
-    Query the Build123D documentation search tool for examples and best practices
-    before generating code.
-  expected_output: >
-    Working, tested Build123D Python code for all 2D sketches, with:
-    - Proper imports from build123d
-    - BuildSketch contexts
-    - All necessary 2D geometry
-    - Clear comments
-    - Verified to execute without errors
-  agent: sketch_expert_agent
-  context:
-    - extract_design_intent_task
-
-generate_3d_operations_task:
-  description: >
-    Using the sketch code from the previous task and the design specification,
-    generate Build123D Python code for 3D operations to create solid models.
+    2. CREATE A PLAN using pseudocode/comments to structure the code:
+       
+       IMPORTANT: The pseudocode example below is just a REFERENCE and GUIDE - NOT a rigid
+       template you must follow exactly. Adapt the structure, steps, and organization based
+       on the actual design requirements. You have full flexibility to:
+       - Add, remove, or reorder steps as needed
+       - Use different approaches for different designs
+       - Organize the code in whatever way makes most sense
+       - Adjust the level of detail based on complexity
+       
+       Example pseudocode structure (ADAPT AS NEEDED):
+       ```python
+       # Main CAD Model: [design_name]
+       # Imports: [list what's needed]
+       
+       # Step 1: Define parameters
+       # [list all dimensions and parameters]
+       
+       # Step 2: Create base sketch
+       # [describe sketch approach]
+       
+       # Step 3: 3D operations
+       # [describe extrude/revolve/etc]
+       
+       # Step 4: Add features
+       # [describe fillets, chamfers, holes]
+       
+       # Step 5: Standard parts (if any)
+       # [list standard parts to add]
+       
+       # Step 6: Export
+       # [STEP and STL export]
+       ```
     
-    Apply appropriate operations:
-    1. Extrude sketches to specified heights/lengths
-    2. Revolve profiles around axes where needed
-    3. Loft between multiple profiles if required
-    4. Apply boolean operations (union, subtract, intersect)
-    5. Position and orient parts correctly
+    3. FOR EACH CODE SECTION, DECIDE:
+       - If it's SIMPLE → Write it yourself (you're the Build123D expert!)
+       - If it's COMPLEX → Delegate to a specialist:
+         * Sketch Expert: For complex 2D profiles with many constraints
+         * Operations Expert: For complex 3D operations (loft, sweep, booleans)
+         * Selector Expert: For tricky geometry selection and filtering
+         * Feature Expert: For complex patterns or multiple features
+         * Calculation Expert: For engineering calculations or parametric relationships
     
-    IMPORTANT: Execute your code to test it. Fix any errors and retry until it works.
+    4. INTEGRATE all code sections into a cohesive, production-ready script with:
+       - Proper imports
+       - Clear variable names
+       - Comprehensive comments
+       - STEP and STL export
     
-    Query the Build123D documentation for operation syntax and examples.
-  expected_output: >
-    Working Build123D Python code that creates 3D solids from sketches using
-    extrude, revolve, loft, and boolean operations. Code must be tested and
-    execute without errors.
-  agent: operations_expert_agent
-  context:
-    - extract_design_intent_task
-    - generate_sketch_code_task
-
-add_features_task:
-  description: >
-    Add engineering features to the 3D model based on the design specification.
+    5. DELEGATE TO SPECIALISTS by asking them specific questions like:
+       - "Sketch Expert: Generate a BuildSketch for [specific geometry description]"
+       - "Operations Expert: Create code to [specific 3D operation]"
+       - "Selector Expert: Write selector code to find [specific geometry]"
     
-    Features to add as specified:
-    1. Fillets on edges (with specified radii)
-    2. Chamfers on edges (with specified distances/angles)
-    3. Holes (simple, counterbore, countersink) at specified locations
-    4. Patterns (linear, polar) if needed
-    5. Threads if specified
-    
-    Use selector operations to precisely target the correct geometry for each feature.
-    
-    IMPORTANT: Execute and test your code. Ensure features are applied correctly.
-    
-    Query Build123D docs for feature syntax and selector operations.
-  expected_output: >
-    Working Build123D Python code that adds all specified features to the model.
-    Includes proper selectors to target geometry. Code is tested and verified.
-  agent: feature_expert_agent
-  context:
-    - extract_design_intent_task
-    - generate_3d_operations_task
-
-apply_selectors_task:
-  description: >
-    Generate Build123D code for any complex geometry selection and filtering
-    operations needed for features or assembly operations.
-    
-    Create selector code for:
-    1. Selecting specific faces (parallel to plane, perpendicular, etc.)
-    2. Filtering edges by type, length, or orientation
-    3. Extracting locations for pattern placement
-    4. Sorting geometry by distance or position
-    
-    Use proper selector syntax (>>>, <<, |, &, -) and filter operations.
-    
-    IMPORTANT: Test your selectors by executing the code.
-  expected_output: >
-    Working Build123D selector code that correctly identifies target geometry.
-    Includes proper filter operations and sorting as needed. Verified by execution.
-  agent: selector_expert_agent
-  context:
-    - extract_design_intent_task
-    - generate_3d_operations_task
-    - add_features_task
-
-perform_calculations_task:
-  description: >
-    Perform any engineering calculations needed for the design based on the
-    specification.
-    
-    Calculate as needed:
-    1. Derived dimensions from engineering formulas
-    2. Tolerance stack-up analysis
-    3. Center of mass and moments of inertia
-    4. Stress calculations for critical features
-    5. Clearance verification
-    6. Parametric relationships
-    
-    Use SymPy for symbolic math and NumPy for numerical calculations.
-    Document all calculations and assumptions.
-  expected_output: >
-    A detailed calculation report with:
-    - All derived dimensions with formulas
-    - Tolerance analysis results
-    - Engineering calculations with units
-    - Verification that design meets constraints
-    Format as structured text or JSON.
-  agent: calculation_expert_agent
-  context:
-    - extract_design_intent_task
-
-integrate_standard_parts_task:
-  description: >
-    For each standard part identified in the design specification, search the
-    standard parts database and generate or retrieve the appropriate Build123D code.
-    
-    For each standard part:
-    1. Query the standard parts database with proper designation
-    2. Get parametric generator function or cached model
-    3. Generate Build123D code to create the part with specified parameters
-    4. Position the part according to the design specification
-    
-    Standard parts may include: fasteners (screws, bolts, nuts, washers),
-    bearings, gears, pulleys, etc.
-  expected_output: >
-    Build123D Python code that generates or imports all standard parts and
-    positions them correctly in the assembly. Includes part metadata and BOM info.
-  agent: build123d_orchestrator
-  context:
-    - extract_design_intent_task
-
-integrate_code_task:
-  description: >
-    Integrate all generated code fragments from specialist agents into a single,
-    cohesive Build123D Python script.
-    
-    Integration tasks:
-    1. Combine sketches, operations, features, and selectors in correct order
-    2. Add proper imports at the top
-    3. Ensure variable names are consistent
-    4. Add comprehensive comments explaining each section
-    5. Include standard parts if specified
-    6. Add export statements for STEP and STL
-    7. Format code according to Python best practices (Black style)
-    
-    The final script should be clean, well-organized, and production-ready.
+    Remember: You can write most code yourself. Only delegate when complexity requires
+    specialized expertise.
   expected_output: >
     A complete, production-ready Build123D Python script that:
-    - Has all necessary imports
+    - Has a clear pseudocode plan at the top (commented)
+    - Includes all necessary imports
+    - Defines all parameters
     - Creates all components in proper order
     - Applies all features and operations
-    - Includes standard parts
+    - Includes standard parts if specified
     - Has clear comments throughout
-    - Exports to STEP and STL
-    - Follows Python best practices
+    - Exports to STEP and STL files
+    - Is tested and verified to work
+    
+    Save the final script to: outputs/generated_code/cad_model.py
   agent: build123d_orchestrator
   context:
-    - generate_sketch_code_task
-    - generate_3d_operations_task
-    - add_features_task
-    - apply_selectors_task
-    - integrate_standard_parts_task
+    - extract_design_intent_task
   output_file: outputs/generated_code/cad_model.py
 
 validate_code_and_geometry_task:
   description: >
-    Execute the integrated Build123D script, validate the generated geometry,
+    Execute the Build123D script generated by the orchestrator, validate the geometry,
     verify dimensions, and test export to STEP/STL formats.
     
     Validation steps:
-    1. Execute the complete Python script in a secure environment
-    2. Capture any errors or exceptions
+    1. Read and execute the complete Python script from outputs/generated_code/cad_model.py
+    2. Capture any errors or exceptions with detailed traceback
     3. Validate the resulting geometry:
        - Check that it's a valid manifold solid
-       - Verify volume is positive
-       - Check bounding box is reasonable
-    4. Verify dimensions match the specification (within tolerance)
-    5. Test export to STEP format
-    6. Test export to STL format
-    7. Check file sizes are reasonable
+       - Verify volume is positive and reasonable
+       - Check bounding box dimensions match specification
+    4. Verify critical dimensions match the specification (within tolerance)
+    5. Test export to STEP format (outputs/cad_files/step/)
+    6. Test export to STL format (outputs/cad_files/stl/)
+    7. Verify exported files exist and have reasonable sizes
     
-    If errors occur, provide specific feedback including:
+    If errors occur, provide specific feedback:
     - Error type and message
     - Line number if applicable
     - Suggested fix
-    - Whether to retry code generation
+    - Whether to ask orchestrator to regenerate code
     
-    If validation passes, provide confirmation and file paths.
+    If validation passes, provide confirmation with file paths and geometry stats.
   expected_output: >
-    A comprehensive validation report in JSON format containing:
+    A comprehensive validation report containing:
     - execution_success: boolean
-    - errors: array of error objects (if any)
+    - errors: array of error details (if any)
     - geometry_valid: boolean
     - manifold_check: boolean
-    - volume: number
-    - bounding_box: object with dimensions
+    - volume: number (in cubic mm or appropriate units)
+    - bounding_box: {min: [x,y,z], max: [x,y,z], dimensions: [w,h,d]}
     - dimensions_accurate: boolean
-    - dimension_errors: array (if any)
-    - step_file_path: string
-    - stl_file_path: string
+    - dimension_errors: array (if any discrepancies found)
+    - step_file_path: string (if successful)
+    - stl_file_path: string (if successful)
     - export_success: boolean
-    - validation_timestamp: string
-    - next_steps: string (if retry needed)
+    - validation_timestamp: ISO string
+    - next_steps: string (recommendations)
+    
+    Save report to: outputs/validation_reports/validation_report.json
   agent: validation_agent
   context:
     - extract_design_intent_task
-    - integrate_code_task
+    - orchestrate_cad_generation_task
   output_file: outputs/validation_reports/validation_report.json
 

@@ -1,13 +1,18 @@
 """
-CAD Agent - Tool Definitions.
+Custom tools for the CAD Agent.
 
-This module contains tools that agents use to perform their tasks.
+This module provides specialized tools for Build123D code generation,
+including documentation search, code examples, and local Python execution.
 """
 
-__all__ = [
-    "build123d_docs_search_tool",
-    "code_validator_tool",
-    "code_executor_tool",
-    "standard_parts_search_tool",
-]
+from .build123d_doc_tool import (
+    Build123DDocSearchTool,
+    Build123DExamplesTool,
+)
+from .secure_cad_executor import SecureCADExecutor
 
+__all__ = [
+    'Build123DDocSearchTool',
+    'Build123DExamplesTool',
+    'SecureCADExecutor',
+]

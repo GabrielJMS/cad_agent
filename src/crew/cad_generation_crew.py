@@ -7,11 +7,14 @@ following best practices from: https://docs.crewai.com/quickstart
 
 from crewai import Agent, Crew, Process, Task
 from crewai.project import CrewBase, agent, crew, task, before_kickoff, after_kickoff
-from crewai_tools import CodeInterpreterTool
+# Code execution now handled by LocalPythonExecutor
 from crewai.agents.agent_builder.base_agent import BaseAgent
 from typing import List, Dict, Any
 import os
 from pathlib import Path
+
+# Import Build123D specialized tools
+from src.tools import Build123DDocSearchTool, Build123DExamplesTool, SecureCADExecutor
 
 
 @CrewBase
@@ -19,25 +22,44 @@ class CadGenerationCrew:
     """
     CAD Generation Crew for translating text to CAD models using Build123D.
     
-    This crew orchestrates multiple specialized agents to:
-    1. Extract design intent from natural language
-    2. Generate Build123D Python code for sketches
-    3. Create 3D operations (extrude, revolve, etc.)
-    4. Add engineering features (fillets, chamfers, holes)
-    5. Apply geometry selectors
-    6. Perform engineering calculations
-    7. Integrate standard parts
-    8. Validate and export CAD models
+    Uses a delegation-based workflow where a Build123D Orchestrator agent
+    drives the process, creating plans and delegating to specialists as needed.
+    
+    Agents:
+    - Design Intent Agent: Extracts requirements from natural language
+    - Build123D Orchestrator: Main driver with strongest Build123D knowledge
+    - Specialist Agents (available for delegation):
+      • Sketch Expert: Complex 2D profiles
+      • Operations Expert: Complex 3D operations
+      • Selector Expert: Geometry selection and filtering
+      • Feature Expert: Engineering features (fillets, chamfers, holes, patterns)
+      • Calculation Expert: Engineering calculations
+    - Validation Agent: Tests and validates generated code
+    
+    The orchestrator can write simple code itself and only delegates complex
+    tasks to specialists, making the workflow dynamic and efficient.
     """
     
     # Configuration files
-    # For Ollama (local LLM): use '../../config/agents_ollama.yaml'
-    # For OpenAI: use '../../config/agents.yaml'
-    agents_config = '../../config/agents_ollama.yaml'  # Use agents.yaml for OpenAI
+    # ========================================================================
+    # MODEL SWITCHING - Easy ways to change LLM:
+    # ========================================================================
+    # Option 1: Use unified config + set LLM_MODEL in .env (RECOMMENDED)
+    #   agents_config = '../../config/agents_unified.yaml'
+    #   Then in .env: LLM_MODEL=zhipu/glm-4
+    #
+    # Option 2: Use model-specific configs
+    #   agents_config = '../../config/agents_glm.yaml'      # GLM-4.6
+    #   agents_config = '../../config/agents_ollama.yaml'  # Ollama
+    #   agents_config = '../../config/agents.yaml'         # OpenAI
+    # ========================================================================
+    agents_config = '../../config/agents_ollama.yaml'
     tasks_config = '../../config/tasks.yaml'
     
     # Initialize tools
-    code_interpreter = CodeInterpreterTool()
+    code_interpreter = SecureCADExecutor()            # 🔒 Secure Docker CAD executor
+    doc_search_tool = Build123DDocSearchTool()        # 📚 Documentation search
+    examples_tool = Build123DExamplesTool()           # 💡 Code examples
     
     # Note: Don't override __init__ when using @CrewBase decorator
     # The metaclass handles initialization automatically
@@ -58,6 +80,10 @@ class CadGenerationCrew:
         print("=" * 70)
         print(f"\n📝 User Input: {inputs.get('user_input', 'N/A')}")
         print(f"🎨 Design Type: {inputs.get('design_type', 'mechanical part')}")
+        print("\n🔧 Available Tools:")
+        print("  • Build123D Documentation Search (RAG)")
+        print("  • Build123D Code Examples Database")
+        print("  • Code Interpreter (if Docker enabled)")
         print("\n" + "=" * 70)
         print("🚀 Starting CAD generation workflow...\n")
         
@@ -73,7 +99,8 @@ class CadGenerationCrew:
             'outputs/generated_code',
             'outputs/cad_files/step',
             'outputs/cad_files/stl',
-            'outputs/validation_reports'
+            'outputs/validation_reports',
+            'cache/build123d_docs',  # For documentation caching
         ]
         for dir_path in output_dirs:
             Path(dir_path).mkdir(parents=True, exist_ok=True)
@@ -133,8 +160,11 @@ class CadGenerationCrew:
         """Sketch Expert Agent - Generates Build123D sketch code."""
         return Agent(
             config=self.agents_config['sketch_expert_agent'],
-            # Build123D documentation search tool will be added here
-            # tools=[build123d_docs_search_tool]
+            tools=[
+                self.doc_search_tool,
+                self.examples_tool,
+                self.code_interpreter,  # ✅ Execute and test sketch code
+            ]
         )
     
     @agent
@@ -142,7 +172,11 @@ class CadGenerationCrew:
         """3D Operations Expert Agent - Generates 3D modeling code."""
         return Agent(
             config=self.agents_config['operations_expert_agent'],
-            # tools=[build123d_docs_search_tool]
+            tools=[
+                self.doc_search_tool,
+                self.examples_tool,
+                self.code_interpreter,  # ✅ Execute and test 3D operations
+            ]
         )
     
     @agent
@@ -150,7 +184,10 @@ class CadGenerationCrew:
         """Selector Expert Agent - Generates geometry selection code."""
         return Agent(
             config=self.agents_config['selector_expert_agent'],
-            # tools=[build123d_docs_search_tool]
+            tools=[
+                self.doc_search_tool,
+                self.code_interpreter,  # ✅ Execute and test selector code
+            ]
         )
     
     @agent
@@ -158,7 +195,11 @@ class CadGenerationCrew:
         """Feature Expert Agent - Adds engineering features."""
         return Agent(
             config=self.agents_config['feature_expert_agent'],
-            # tools=[build123d_docs_search_tool]
+            tools=[
+                self.doc_search_tool,
+                self.examples_tool,
+                self.code_interpreter,  # ✅ Execute and test feature code
+            ]
         )
     
     @agent
@@ -173,89 +214,58 @@ class CadGenerationCrew:
         """Validation Agent - Executes and validates CAD code."""
         return Agent(
             config=self.agents_config['validation_agent'],
-            # tools=[geometry_validator_tool, export_validator_tool]
+            tools=[
+                self.code_interpreter,  # ✅ REQUIRED: Must execute code for validation
+                # Future: geometry_validator_tool, export_validator_tool
+            ]
         )
     
     @agent
     def build123d_orchestrator(self) -> Agent:
-        """Orchestrator Agent - Coordinates and integrates all code."""
+        """
+        Orchestrator Agent - Main driver with strongest Build123D knowledge.
+        
+        Has access to all Build123D tools for documentation search and examples.
+        Can execute code to test and validate Build123D scripts.
+        """
         return Agent(
             config=self.agents_config['build123d_orchestrator'],
-            # tools=[standard_parts_search_tool]
+            tools=[
+                self.doc_search_tool,    # 📚 Search Build123D documentation
+                self.examples_tool,      # 💡 Get working code examples
+                self.code_interpreter,   # ✅ Execute and test Build123D code
+            ]
         )
     
     # ========================================================================
-    # TASK DEFINITIONS
+    # TASK DEFINITIONS (Delegation-Based Workflow)
     # ========================================================================
     
     @task
     def extract_design_intent_task(self) -> Task:
-        """Task: Extract design intent from user input."""
+        """Task 1: Extract design intent from user input."""
         return Task(
             config=self.tasks_config['extract_design_intent_task'],
             agent=self.design_intent_agent()
         )
     
     @task
-    def generate_sketch_code_task(self) -> Task:
-        """Task: Generate Build123D sketch code."""
+    def orchestrate_cad_generation_task(self) -> Task:
+        """
+        Task 2: Main CAD generation task - Orchestrator drives the workflow.
+        
+        The orchestrator creates a plan, writes code, and delegates to specialists
+        as needed (sketch expert, operations expert, selector expert, etc.)
+        """
         return Task(
-            config=self.tasks_config['generate_sketch_code_task'],
-            agent=self.sketch_expert_agent()
-        )
-    
-    @task
-    def generate_3d_operations_task(self) -> Task:
-        """Task: Generate 3D operations code."""
-        return Task(
-            config=self.tasks_config['generate_3d_operations_task'],
-            agent=self.operations_expert_agent()
-        )
-    
-    @task
-    def add_features_task(self) -> Task:
-        """Task: Add engineering features to the model."""
-        return Task(
-            config=self.tasks_config['add_features_task'],
-            agent=self.feature_expert_agent()
-        )
-    
-    @task
-    def apply_selectors_task(self) -> Task:
-        """Task: Generate selector code for geometry selection."""
-        return Task(
-            config=self.tasks_config['apply_selectors_task'],
-            agent=self.selector_expert_agent()
-        )
-    
-    @task
-    def perform_calculations_task(self) -> Task:
-        """Task: Perform engineering calculations."""
-        return Task(
-            config=self.tasks_config['perform_calculations_task'],
-            agent=self.calculation_expert_agent()
-        )
-    
-    @task
-    def integrate_standard_parts_task(self) -> Task:
-        """Task: Integrate standard parts from database."""
-        return Task(
-            config=self.tasks_config['integrate_standard_parts_task'],
-            agent=self.build123d_orchestrator()
-        )
-    
-    @task
-    def integrate_code_task(self) -> Task:
-        """Task: Integrate all code into final script."""
-        return Task(
-            config=self.tasks_config['integrate_code_task'],
+            config=self.tasks_config['orchestrate_cad_generation_task'],
             agent=self.build123d_orchestrator(),
             output_file='outputs/generated_code/cad_model.py'
         )
     
     @task
     def validate_code_and_geometry_task(self) -> Task:
-        """Task: Validate code execution and geometry."""
+        """Task 3: Validate code execution and geometry."""
         return Task(
             config=self.tasks_config['validate_code_and_geometry_task'],
             agent=self.validation_agent(),
@@ -269,18 +279,28 @@ class CadGenerationCrew:
     @crew
     def crew(self) -> Crew:
         """
-        Creates the CAD Generation Crew.
+        Creates the CAD Generation Crew with delegation-based workflow.
         
-        The crew executes tasks sequentially:
-        1. Extract design intent
-        2. Generate sketches
-        3. Create 3D operations
-        4. Add features
-        5. Apply selectors
-        6. Perform calculations (parallel)
-        7. Integrate standard parts (parallel)
-        8. Integrate all code
-        9. Validate and export
+        Workflow (3 sequential tasks):
+        1. Extract Design Intent (Design Intent Agent)
+           → Analyzes user input and creates structured specification
+        
+        2. Orchestrate CAD Generation (Build123D Orchestrator) ⭐ Main Task
+           → Creates pseudocode plan
+           → Writes simple code directly
+           → Delegates complex parts to specialists:
+             • Sketch Expert (complex 2D profiles)
+             • Operations Expert (complex 3D operations)
+             • Selector Expert (tricky geometry selection)
+             • Feature Expert (complex patterns/features)
+             • Calculation Expert (engineering calculations)
+           → Integrates everything into final script
+        
+        3. Validate Code & Geometry (Validation Agent)
+           → Executes code, validates geometry, exports STEP/STL
+        
+        The orchestrator has allow_delegation=true and dynamically chooses
+        when to delegate based on task complexity.
         
         :return: Configured Crew instance
         """
@@ -289,9 +309,6 @@ class CadGenerationCrew:
             tasks=self.tasks,    # Automatically created by @task decorator
             process=Process.sequential,
             verbose=True,
-            # Can be upgraded to hierarchical process later for complex designs
-            # process=Process.hierarchical,
-            # manager_llm='openai/gpt-4-turbo-preview'
         )
 
 
