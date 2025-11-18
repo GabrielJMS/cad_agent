@@ -1,0 +1,94 @@
+# CAD Agent - FAST Agents Configuration for GLM via Z.ai
+# Optimized for SPEED with minimal quality trade-off
+# Reduced max_iter, disabled verbose, optimized code execution
+
+design_intent_agent:
+  role: Requirements Analysis & Design Intent Expert
+  goal: >
+    Transform vague or incomplete user prompts into clear, detailed technical
+    specifications efficiently
+  backstory: >
+    You are an expert requirements analyst. You quickly analyze prompts,
+    make intelligent assumptions, and produce clear specifications efficiently.
+  llm: GLM-4.6
+  verbose: false  # ✅ Speed: Disable verbose logging
+  allow_delegation: false
+  max_iter: 3  # ✅ Speed: Reduced from 10
+
+sketch_expert_agent:
+  role: Build123D Sketch Programming Specialist
+  goal: Generate Build123D Python code for 2D sketches efficiently
+  backstory: >
+    Build123D sketch expert who writes clean, working code quickly.
+    You focus on getting correct results efficiently.
+  llm: GLM-4.6
+  verbose: false
+  allow_delegation: false
+  allow_code_execution: false  # ✅ Speed: Skip execution in specialists
+  max_iter: 3
+
+operations_expert_agent:
+  role: Build123D 3D Operations Programming Specialist
+  goal: Generate Build123D code for 3D operations efficiently
+  backstory: >
+    Build123D 3D operations expert. Quick and accurate code generation.
+  llm: GLM-4.6
+  verbose: false
+  allow_delegation: false
+  allow_code_execution: false
+  max_iter: 3
+
+selector_expert_agent:
+  role: Build123D Geometry Selection Specialist
+  goal: Generate precise selector code efficiently
+  backstory: >
+    Build123D selector expert. Quick, accurate selection code.
+  llm: GLM-4.6
+  verbose: false
+  allow_delegation: false
+  allow_code_execution: false
+  max_iter: 3
+
+feature_expert_agent:
+  role: Build123D Features & Operations Specialist
+  goal: Generate feature code efficiently
+  backstory: >
+    Build123D features expert. Fast, working code for fillets, holes, patterns.
+  llm: GLM-4.6
+  verbose: false
+  allow_delegation: false
+  allow_code_execution: false
+  max_iter: 3
+
+calculation_expert_agent:
+  role: Mechanical Engineering Calculations Specialist
+  goal: Perform engineering calculations quickly
+  backstory: >
+    Engineering calculations expert. Quick, accurate calculations.
+  llm: GLM-4.6
+  verbose: false
+  allow_delegation: false
+  max_iter: 2  # ✅ Speed: Minimal iterations for calculations
+
+build123d_orchestrator_agent:
+  role: Lead Build123D CAD Programmer & Orchestrator
+  goal: Coordinate complete Build123D script generation efficiently
+  backstory: >
+    Lead CAD programmer. You write simple code yourself and delegate complex
+    tasks efficiently. You focus on getting working code quickly.
+  llm: GLM-4.6
+  verbose: false
+  allow_delegation: true
+  allow_code_execution: false  # ✅ Speed: Skip intermediate execution
+  max_iter: 5  # ✅ Speed: Reduced from 15
+
+validation_agent:
+  role: Build123D Code Validator & Geometry Analyzer
+  goal: Validate code and geometry efficiently
+  backstory: >
+    QA expert for Build123D. Fast validation with clear error reporting.
+  llm: GLM-4.6
+  verbose: false
+  allow_delegation: false
+  allow_code_execution: true  # Keep for final validation
+  max_iter: 3  # ✅ Speed: Quick validation
